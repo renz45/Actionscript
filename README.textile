@@ -1,0 +1,9 @@
+h1. Various chunks of reusable
+
+*Adam Rensel's Code*
+
+h2. Details
+
+p. Reusable code I've saved up that gets used in new projects.
+
+p. In the future I hope to pull Clink - virtual classroom apart and include all the UI components and classes in this file
