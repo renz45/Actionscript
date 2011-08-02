@@ -35,6 +35,7 @@ package com.rensel.fileUtils
 	public class DirectoryMonitor extends EventDispatcher
 	{
 		private var _fileList:Vector.<File> = new Vector.<File>;
+		private var _fileContentList:Vector.<Vector.<File>> =  new Vector.<Vector.<File>>;
 		private var _fileCompareList:Vector.<int> = new Vector.<int>;
 		
 		private var _duration:int = 1000;
@@ -49,36 +50,66 @@ package com.rensel.fileUtils
 		{
 			_timer = new Timer(_duration);
 			_timer.addEventListener(TimerEvent.TIMER, onTimer);
+			
 		}
 		
 		private function onTimer(e:TimerEvent):void
 		{
-			var cArr:Array;
-			var newList:int;
+			var newTotalTime:int;
 			
 			for(var i:int = 0; i < _fileList.length; i++)
 			{
-				if(_fileCompareList.length-1 >= i)
+				newTotalTime = getTotalModTime(_fileContentList[i]);
+				
+				if(_fileCompareList.length-1 < i)
 				{
-					newList = traverseDirectoryTree(_fileList[i]);
+					_fileCompareList[i] = newTotalTime;
+				}
+				
+				if(_fileCompareList[i] != newTotalTime)
+				{
+					var evt:DirectoryMonitor_Event = new DirectoryMonitor_Event(DirectoryMonitor_Event.DIRECTORY_CHANGE);
+					evt.file = _fileList[i];
+					this.dispatchEvent(evt);
 					
-					if(_fileCompareList[i] != newList)
-					{
-						_fileCompareList[i] = newList;
-						
-						var evt:DirectoryMonitor_Event = new DirectoryMonitor_Event(DirectoryMonitor_Event.DIRECTORY_CHANGE);
-						evt.file = _fileList[i];
-						this.dispatchEvent(evt);
-						break;
-					}
-					
-				}else{
-					_fileCompareList[i] = traverseDirectoryTree(_fileList[i]);
+					_fileCompareList[i] = newTotalTime;
+					_fileContentList[i] = traverseDirectoryTree(_fileList[i]);
 				}
 			}
 		}
 		
-		private function traverseDirectoryTree(dir:File):int
+		private function traverseDirectoryTree(dir:File):Vector.<File>
+		{
+			var dirList:Vector.<File> = new Vector.<File>;
+			
+			for each (var file:File in dir.getDirectoryListing())
+			{
+				if(!file.isHidden && file.isDirectory)
+				{
+					dirList.push(file);
+					dirList = dirList.concat(traverseDirectoryTree(file));
+				}
+			}
+			
+			return dirList;
+		}
+		
+		private function getTotalModTime(dirList:Vector.<File>):int
+		{
+			var total:int = 0;
+			
+			for each(var file:File in dirList)
+			{
+				if(file.exists)
+				{
+					total += file.modificationDate.time;
+				}
+			}
+			
+			return total;
+		}
+		
+	/*	private function traverseDirectoryTree(dir:File):int
 		{
 			var totalTime:int = dir.modificationDate.time;
 			
@@ -92,7 +123,9 @@ package com.rensel.fileUtils
 			}
 			
 			return totalTime;
-		}
+		}*/
+		
+		
 		
 		/**
 		 * add a directory to the directory monitor class, mutiple directories can be watched by calling this method multiple times
@@ -103,7 +136,11 @@ package com.rensel.fileUtils
 		{
 			if(directory.isDirectory)
 			{
+				var vectorList:Vector.<File> = traverseDirectoryTree(directory);
+				
 				_fileList.push(directory);
+				_fileContentList.push(vectorList);
+				_fileCompareList.push(getTotalModTime(vectorList));
 			}else{
 				throw Error('File passed in must be a directory');
 			}
