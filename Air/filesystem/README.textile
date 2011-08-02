@@ -1,0 +1,9 @@
+h1. Adobe Air File system classes
+
+*Adam Rensel's Code*
+
+h2. Details
+
+*Directory Monitor - This class monitors directories passed as a File and dispatches an event with the directory which changes.
+
+*File Serializer - Serializes an object and saves it in the application storage directory, also contains a method for retrieving the file.
