@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx" applicationComplete="windowedapplication1_applicationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import com.rensel.filesystem.DirectoryMonitor;
+			import com.rensel.filesystem.Events.DirectoryMonitor_Event;
+			import com.rensel.filesystem.FileSerializer;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CollectionEvent;
+			import mx.events.FlexEvent;
+			
+			private var _directoryList:Object = {};
+			//new directory monitor to watch directory changes
+			private var _dirMonitor:DirectoryMonitor = new DirectoryMonitor(1000);
+			
+			private var _nativeParams:Vector.<String> = new Vector.<String>;
+			private var _startupInfo:NativeProcessStartupInfo;
+			
+			[Bindable]
+			private var _syncSourceList:ArrayCollection = new ArrayCollection(); 
+			
+			[Bindable]
+			private var _targetList:ArrayCollection;
+			
+			//constructor
+			protected function windowedapplication1_applicationCompleteHandler(event:FlexEvent):void
+			{
+				//add event listener to watch for directory changes
+				_dirMonitor.addEventListener(DirectoryMonitor_Event.DIRECTORY_CHANGE,syncFiles);
+				
+				//use the FileSerializer class to grab the stored data from application storage
+				_directoryList = FileSerializer.readObjectFromFile("synketSave");
+				
+				//if there was stored data loop and parse out the values into the directoryMonitor, or if there wasn't data just set equal to empty object
+				if(!_directoryList)
+				{
+					_directoryList = {};
+				}else{
+					for(var f:String in _directoryList)
+					{
+						if(f != "undefined")
+						{
+							//arrayCollection bound to the list which displays synced files
+							_syncSourceList.addItem(f);
+							
+							//create new file object
+							var file:File = new File();
+							file.nativePath = f;
+							
+							//add file to the directoryMonitor
+							_dirMonitor.addDirectory(file);
+						}else{
+							//sometimes an undefined value gets inserted for some reason, I sort of copped out and added this line to remove it
+							//FIXME figure out what creates the undefined instead of using a hack to remove the error
+							delete _directoryList.undefined;
+						}
+					}
+				}
+				
+				//set the directoryMonitor to start watching the directories
+				_dirMonitor.watch();
+				
+				//add eventListeners to buttons and list
+				fileToSyncAdd_btn.addEventListener(MouseEvent.CLICK, onAddSyncClick);
+				fileToSyncDelete_btn.addEventListener(MouseEvent.CLICK,onDeleteSyncClick);
+				
+				targetToSyncAdd_btn.addEventListener(MouseEvent.CLICK, onAddTargetClick);
+				targetToSyncDelete_btn.addEventListener(MouseEvent.CLICK,onDeleteTargetClick);
+				
+				fileToSyncList.addEventListener(MouseEvent.CLICK,onSyncClick);
+				excludeItems_tf.addEventListener(KeyboardEvent.KEY_UP, excludeKeyDown);
+				
+				//set the default selected list item to the first item in the list
+				if(fileToSyncList.dataProvider.length > 0)
+				{
+					fileToSyncList.selectedItem = fileToSyncList.dataProvider[0];
+					fileToSyncList.dataGroup.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				}
+				
+				//set up the native process code
+				setupNativeProcess();
+			}
+			
+			//keyDown handler for the exclude text area, store exclude items to the directoryList object
+			private function excludeKeyDown(e:KeyboardEvent):void
+			{
+				if(fileToSyncList.selectedItem)
+				{
+					_directoryList[fileToSyncList.selectedItem]['exclude'] = excludeItems_tf.text;
+					updateSave();
+				}
+			}
+			
+			//click handler for clicking on a sync item, switch views of excludes and target directories to match selected sync item
+			private function onSyncClick(e:MouseEvent):void
+			{				
+				if(e.currentTarget.selectedItem)
+				{
+					_targetList = _directoryList[e.currentTarget.selectedItem]['dirs'];
+				
+					excludeItems_tf.text = _directoryList[e.currentTarget.selectedItem]['exclude'];
+				}
+			}
+			
+			//delete selected target directory 
+			private function onDeleteTargetClick(e:MouseEvent):void
+			{
+				if(_directoryList[fileToSyncList.selectedItem])
+				{
+					(_directoryList[fileToSyncList.selectedItem]['dirs'] as ArrayCollection).removeItemAt((_directoryList[fileToSyncList.selectedItem]['dirs'] as ArrayCollection).getItemIndex(targetList.selectedItem));
+					updateSave();
+				}
+			}
+			
+			//add target directory file, open browse window
+			private function onAddTargetClick(e:MouseEvent):void
+			{
+				if(fileToSyncList.selectedItem)
+				{
+					var f:File = File.documentsDirectory;
+					f.addEventListener(Event.SELECT, onTargetSelect);
+					f.browseForDirectory("Choose a target folder");
+				}else{
+					Alert.show('Please select a synced file to add targets to, before trying to add a target file','oops!');
+				}
+			}
+			
+			//after browse select
+			private function onTargetSelect(e:Event):void
+			{
+				if((_directoryList[fileToSyncList.selectedItem]['dirs'] as ArrayCollection).getItemIndex(e.currentTarget.nativePath) > -1)
+				{
+					(_directoryList[fileToSyncList.selectedItem]['dirs'] as ArrayCollection).addItem(e.currentTarget.nativePath);
+				}else{
+					Alert.show('Please select a target file that is not already a target','oops!');
+				}
+				
+				updateSave();
+			}
+
+			//delete a synced file
+			private function onDeleteSyncClick(e:MouseEvent):void
+			{
+				if(fileToSyncList.selectedItem)
+				{
+					//create a file with the same native path, pass it to the directory monitor to remove the file from being monitored
+					var file:File = new File();
+					file.nativePath = fileToSyncList.selectedItem;
+					_dirMonitor.removeDirectory(file);
+					
+					//delete the object key from the main storage object
+					delete _directoryList[fileToSyncList.selectedItem];
+					
+					//remove from the display
+					_syncSourceList.removeItemAt(_syncSourceList.getItemIndex(fileToSyncList.selectedItem));
+					_targetList = new ArrayCollection();
+					
+					//save the object to application storage
+					updateSave();
+				}
+			}
+			
+			//add syned file click handler, open browse window
+			private function onAddSyncClick(e:MouseEvent):void
+			{
+				var f:File = File.documentsDirectory;
+				f.addEventListener(Event.SELECT, onFileSelect);
+				f.browseForDirectory("Choose a sync source folder");
+			}
+			
+			//after sync file has been selected
+			private function onFileSelect(e:Event):void
+			{
+				if(!_directoryList[e.currentTarget.nativePath])
+				{
+					//update all refrerence arrays
+					_directoryList[e.currentTarget.nativePath] = {};
+					_directoryList[e.currentTarget.nativePath]['dirs'] = new ArrayCollection();
+					_directoryList[e.currentTarget.nativePath]['exclude'] = ""; 
+					_syncSourceList.addItem(e.currentTarget.nativePath);
+					
+					//add the selected file to the directoryMonitor
+					_dirMonitor.addDirectory(e.currentTarget as File);
+					fileToSyncList.selectedItem = e.currentTarget.nativePath;
+					
+					// save the object to disk
+					updateSave();
+				}else{
+					Alert.show('This folder is already being synced, please choose another','oops!');
+				}
+			}
+			
+			//used to save the file to disk utilizing the fileserializer class
+			private function updateSave():void
+			{
+				FileSerializer.writeObjectToFile(_directoryList,"synketSave");
+			}
+			
+			//setup initial native process code
+			private function setupNativeProcess():void
+			{
+				_startupInfo = new NativeProcessStartupInfo();
+				
+				var rsyncFile:File = new File();
+				rsyncFile.nativePath = '/usr/bin/';
+				rsyncFile = rsyncFile.resolvePath('rsync');
+
+				_startupInfo.executable = rsyncFile;
+				
+				_nativeParams.push('-ra');
+				_nativeParams.push('--delete');
+				_nativeParams.push('--exclude');
+				_nativeParams.push('.DS_Store');
+
+			}
+			
+			//event handler for the directory monitor, this is triggered when a change is detected in the given directory
+			private function syncFiles(e:DirectoryMonitor_Event):void
+			{
+				var initialParams:Vector.<String> = _nativeParams.concat();
+				
+				//get exclude list, split into an array
+				var excludes:Array = (_directoryList[e.file.nativePath]['exclude'] as String).split(" ");
+				
+				//loop through the array of excludes and add them to the arguments for calling the native process
+				for each(var exclude:String in excludes)
+				{
+					initialParams.push('--exclude');
+					initialParams.push(exclude);
+				}
+				
+				//push the source path
+				initialParams.push(e.file.nativePath);
+
+				//for each sync target stored, run the native process and sync the files to each target
+				for each(var path:String in _directoryList[e.file.nativePath])
+				{				
+					var execParams:Vector.<String> = initialParams.concat();
+					var p:NativeProcess = new NativeProcess();
+					execParams.push(path);
+					
+					_startupInfo.arguments = execParams;
+					
+					p.start(_startupInfo);
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<s:HGroup paddingBottom="10"
+			  paddingLeft="10"
+			  paddingRight="10"
+			  paddingTop="10">
+		
+		<s:VGroup >
+			<s:Panel title="File to sync" width="580">
+				<s:layout >
+					<s:VerticalLayout paddingBottom="10"
+									  paddingLeft="10"
+									  paddingRight="10"
+									  paddingTop="10"/>
+				</s:layout>
+				<s:VGroup >
+					<s:List dataProvider="{_syncSourceList}" id="fileToSyncList" width="560">
+						
+					</s:List>
+					<s:HGroup >
+						<s:Button label="Add" id="fileToSyncAdd_btn"/>
+						<s:Button label="Delete" id="fileToSyncDelete_btn"/>
+					</s:HGroup>
+				</s:VGroup>
+			</s:Panel>
+			
+			<s:Panel title="Sync Targets" width="580" >
+				<s:layout >
+					<s:VerticalLayout paddingBottom="10"
+									  paddingLeft="10"
+									  paddingRight="10"
+									  paddingTop="10"/>
+				</s:layout>
+					
+			 	<s:VGroup >
+					<s:List dataProvider="{_targetList}" id="targetList" width="560">
+						
+					</s:List>
+					<s:HGroup id="targetBtns">
+						<s:Button label="Add" id="targetToSyncAdd_btn"/>
+						<s:Button label="Delete" id="targetToSyncDelete_btn"/>
+					</s:HGroup>
+				</s:VGroup>
+			
+			</s:Panel>
+		</s:VGroup>
+		<s:Panel title="Ignore List" width="120">
+			<s:layout >
+				<s:VerticalLayout paddingBottom="10"
+								  paddingLeft="10"
+								  paddingRight="10"
+								  paddingTop="10"/>
+			</s:layout>
+			<s:TextArea width="100" height="337" id="excludeItems_tf" >
+				
+			</s:TextArea>
+		</s:Panel>
+	</s:HGroup>
+</s:WindowedApplication>
