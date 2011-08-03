@@ -1,0 +1,7 @@
+h1. Synket
+
+*Adam Rensel's Code*
+
+h2. Details
+
+p.synket -An air based file sync tool for osx, tested on snow leopard 10.6.7 Add files to sync and targets where those files will sync to. Files can be excluded through standard means ex. *.css *.html settings/ etc. Keeping the application open will keep files synced whenever anything changes in those files.
