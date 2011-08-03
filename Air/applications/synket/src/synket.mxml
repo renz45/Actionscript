@@ -132,7 +132,8 @@
 			//after browse select
 			private function onTargetSelect(e:Event):void
 			{
-				if((_directoryList[fileToSyncList.selectedItem]['dirs'] as ArrayCollection).getItemIndex(e.currentTarget.nativePath) > -1)
+				
+				if((_directoryList[fileToSyncList.selectedItem]['dirs'] as ArrayCollection).getItemIndex(e.currentTarget.nativePath) == -1)
 				{
 					(_directoryList[fileToSyncList.selectedItem]['dirs'] as ArrayCollection).addItem(e.currentTarget.nativePath);
 				}else{
