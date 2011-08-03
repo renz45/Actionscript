@@ -1,21 +1,21 @@
 
 /*
-	Copyright (C) 2011 Adam Rensel
-	
-	This program is free software; you can redistribute it and/or
-	modify it under the terms of the GNU General Public License
-	as published by the Free Software Foundation; either version 2
-	of the License, or (at your option) any later version.
-	
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU General Public License for more details.
-	
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. 
- */
+Copyright (C) 2011 Adam Rensel
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. 
+*/
 package com.rensel.fileUtils
 {
 	import com.rensel.fileUtils.Events.DirectoryMonitor_Event;
@@ -24,7 +24,7 @@ package com.rensel.fileUtils
 	import flash.events.TimerEvent;
 	import flash.filesystem.File;
 	import flash.utils.Timer;
-
+	
 	
 	[Event(type="com.rensel.fileUtils.Events.DirectoryMonitor_Event",name="directoryChange")]
 	/**
@@ -57,23 +57,27 @@ package com.rensel.fileUtils
 		{
 			var newTotalTime:int;
 			
-			for(var i:int = 0; i < _fileList.length; i++)
+			if(_fileList.length > 0)
 			{
-				newTotalTime = getTotalModTime(_fileContentList[i]);
-				
-				if(_fileCompareList.length-1 < i)
+				for(var i:int = 0; i < _fileList.length; i++)
 				{
-					_fileCompareList[i] = newTotalTime;
-				}
-				
-				if(_fileCompareList[i] != newTotalTime)
-				{
-					var evt:DirectoryMonitor_Event = new DirectoryMonitor_Event(DirectoryMonitor_Event.DIRECTORY_CHANGE);
-					evt.file = _fileList[i];
-					this.dispatchEvent(evt);
+					trace("asd");
+					newTotalTime = getTotalModTime(_fileContentList[i]);
 					
-					_fileCompareList[i] = newTotalTime;
-					_fileContentList[i] = traverseDirectoryTree(_fileList[i]);
+					if(_fileCompareList.length-1 < i)
+					{
+						_fileCompareList[i] = newTotalTime;
+					}
+					
+					if(_fileCompareList[i] != newTotalTime)
+					{
+						var evt:DirectoryMonitor_Event = new DirectoryMonitor_Event(DirectoryMonitor_Event.DIRECTORY_CHANGE);
+						evt.file = _fileList[i];
+						this.dispatchEvent(evt);
+						
+						_fileCompareList[i] = newTotalTime;
+						_fileContentList[i] = traverseDirectoryTree(_fileList[i]);
+					}
 				}
 			}
 		}
@@ -107,25 +111,7 @@ package com.rensel.fileUtils
 			}
 			
 			return total;
-		}
-		
-	/*	private function traverseDirectoryTree(dir:File):int
-		{
-			var totalTime:int = dir.modificationDate.time;
-			
-			for each (var file:File in dir.getDirectoryListing())
-			{
-				if(!file.isHidden && file.isDirectory)
-				{
-					totalTime += file.modificationDate.time;
-					totalTime += traverseDirectoryTree(file);
-				}
-			}
-			
-			return totalTime;
-		}*/
-		
-		
+		}		
 		
 		/**
 		 * add a directory to the directory monitor class, mutiple directories can be watched by calling this method multiple times
@@ -153,9 +139,21 @@ package com.rensel.fileUtils
 		 */		
 		public function removeDirectory(directory:File):void
 		{
-			if(_fileList.indexOf(directory) != -1)
+			var index:int = -1;
+			
+			for(var i:int = 0; i < _fileList.length; i++)
 			{
-				_fileList.splice(_fileList.indexOf(directory),1);
+				if(_fileList[i].nativePath == directory.nativePath)
+				{
+					index = i
+				}
+			}
+			
+			if(index != -1)
+			{
+				_fileList.splice(index,1);
+				_fileContentList.splice(index,1);
+				_fileCompareList.splice(index,1);
 			}
 		}
 		
