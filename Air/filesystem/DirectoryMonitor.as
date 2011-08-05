@@ -117,7 +117,7 @@ package com.rensel.fileUtils
 		private function traverseDirectoryTree(dir:File):Vector.<File>
 		{
 			var dirList:Vector.<File> = new Vector.<File>;
-			
+			dirList.push(dir);
 			for each (var file:File in dir.getDirectoryListing())
 			{
 				if(!file.isHidden && file.isDirectory)

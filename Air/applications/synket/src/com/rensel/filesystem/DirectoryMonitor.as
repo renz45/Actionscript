@@ -1,20 +1,20 @@
 /*
-	Copyright (C) 2011 Adam Rensel
-	
-	This program is free software; you can redistribute it and/or
-	modify it under the terms of the GNU General Public License
-	as published by the Free Software Foundation; either version 2
-	of the License, or (at your option) any later version.
-	
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU General Public License for more details.
-	
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. 
- */
+Copyright (C) 2011 Adam Rensel
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. 
+*/
 package com.rensel.filesystem
 {
 	import com.rensel.filesystem.Events.DirectoryMonitor_Event;
@@ -23,7 +23,7 @@ package com.rensel.filesystem
 	import flash.events.TimerEvent;
 	import flash.filesystem.File;
 	import flash.utils.Timer;
-
+	
 	
 	[Event(type="com.rensel.fileUtils.Events.DirectoryMonitor_Event",name="directoryChange")]
 	/**
@@ -37,19 +37,41 @@ package com.rensel.filesystem
 		private var _fileContentList:Vector.<Vector.<File>> =  new Vector.<Vector.<File>>;
 		private var _fileCompareList:Vector.<int> = new Vector.<int>;
 		
-		private var _duration:int = 1000;
+		private var _duration:int;
 		private var _timer:Timer;
 		
-		public function DirectoryMonitor(duration:int)
+		public function DirectoryMonitor(duration:int = 1000)
 		{
+			_duration = duration;
 			init();
 		}
 		
 		private function init():void
 		{
 			//create timer add event listeners
+			createTimer();
+		}
+		
+		private function createTimer():void
+		{
+			var isRunning:Boolean = false;
+			if(_timer)
+			{
+				_timer.stop();
+				isRunning = true;
+				
+				_timer.removeEventListener(TimerEvent.TIMER, onTimer);
+				_timer = null;
+			}
+			
+			
 			_timer = new Timer(_duration);
 			_timer.addEventListener(TimerEvent.TIMER, onTimer);
+			
+			if(isRunning)
+			{
+				_timer.start();
+			}
 		}
 		
 		//when the timer starts, compare date modified times to cached values and dispatch a custom event with the File if a difference is detected
@@ -95,7 +117,7 @@ package com.rensel.filesystem
 		private function traverseDirectoryTree(dir:File):Vector.<File>
 		{
 			var dirList:Vector.<File> = new Vector.<File>;
-			
+			dirList.push(dir);
 			for each (var file:File in dir.getDirectoryListing())
 			{
 				if(!file.isHidden && file.isDirectory)
@@ -159,7 +181,7 @@ package com.rensel.filesystem
 					index = i
 				}
 			}
-
+			
 			if(index != -1)
 			{
 				_fileList.splice(index,1);
@@ -184,6 +206,17 @@ package com.rensel.filesystem
 		public function unWatch():void
 		{
 			_timer.stop();
+		}
+		
+		public function get duration():int
+		{
+			return _duration;
+		}
+		
+		public function set duration(duration:int):void
+		{
+			_duration = duration;
+			createTimer();
 		}
 	}
 }
