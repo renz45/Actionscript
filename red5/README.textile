@@ -4,6 +4,6 @@ h1. Red5 Related Code
 
 h2. Details
 
-*red5_whiteboard_with_video - client side files for a Red5 powered whiteboard/video chat application I created for a class assignment. Finished in two days over a weekend.
+* red5_whiteboard_with_video - client side files for a Red5 powered whiteboard/video chat application I created for a class assignment. Finished in two days over a weekend.
 
-*red5_whiteboard_with_video_serverApp - red5 server app files for the red5_whiteboard_with_video
+* red5_whiteboard_with_video_serverApp - red5 server app files for the red5_whiteboard_with_video
